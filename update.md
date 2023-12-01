@@ -11,8 +11,15 @@
 [+] Fixed bugs in the output display
 
 ### 2023.11.29
-[+] Rewrite the code of all components, using async communication
+[+] Rewrote the code of all components, using async communication
 
 [+] Improved the performance of server
 
+[+] Changed from Flask to FastAPI
+
 ### 2023.11.30
+[+] Changed an endpoint from GET method to POST method
+
+[+] Improved client's command parsing
+
+[+] Add `ls`, `cd`, and `whereami` command
