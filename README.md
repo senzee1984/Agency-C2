@@ -21,7 +21,7 @@ Transfer output of command exeution to the server
 ## Client
 :warning: The Python client is deprecated, now the client is being developed by C# WPF 
 
-![image](/screenshot/gui.jpg)
+![image](/screenshot/gui.png)
 
 Interface for operators to join the server and assign tasks to spies
 
