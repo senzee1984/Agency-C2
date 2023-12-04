@@ -26,4 +26,12 @@
 
 ![image](/screenshot/agency.jpg)
 
-### 2023.12.1
+### 2023.12.2
+[+] Started to use C# WPF to created a GUI client for Agency C2
+
+### 2023.12.3
+[+] Completed the basic UI of client and some of interaction functionalities
+
+[+] Improved the task output upload and download logic
+
+[+] Enriched the data structure in server and agent
