@@ -19,6 +19,8 @@ Receive tasks from the server
 Transfer output of command exeution to the server
 
 ## Client
+:warning: The Python client is deprecated, now the client is being developed by C# WPF 
+
 Interface for operators to join the server and assign tasks to spies
 
 Interact with server API
