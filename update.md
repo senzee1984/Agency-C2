@@ -36,4 +36,4 @@
 
 [+] Enriched the data structure in server and agent
 
-![image](/screenshot/gui.jpg)
+![image](/screenshot/gui.png)
