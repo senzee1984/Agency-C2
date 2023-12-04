@@ -35,3 +35,5 @@
 [+] Improved the task output upload and download logic
 
 [+] Enriched the data structure in server and agent
+
+![image](/screenshot/gui.jpg)
