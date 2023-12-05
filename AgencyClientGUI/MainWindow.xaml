@@ -1,0 +1,60 @@
+﻿<Window x:Class="AgencyClientGUI.MainWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Agency C2 Client" Height="800" Width="1200">
+    <Grid>
+        <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="55*"/>
+            <ColumnDefinition Width="251*"/>
+            <ColumnDefinition Width="294*"/>
+        </Grid.ColumnDefinitions>
+        <!-- Menu Bar -->
+        <Menu IsMainMenu="True" Grid.ColumnSpan="3">
+            <MenuItem Header="Agency"/>
+            <MenuItem Header="View"/>
+            <MenuItem Header="Attack"/>
+            <MenuItem Header="Scripts"/>
+            <MenuItem Header="Help"/>
+        </Menu>
+
+        <DockPanel LastChildFill="True" Grid.ColumnSpan="3">
+
+            <Grid DockPanel.Dock="Top" Height="265">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="257"/>
+                    <ColumnDefinition/>
+                </Grid.ColumnDefinitions>
+
+
+
+                <!-- Agent Canvas -->
+                <Grid Grid.ColumnSpan="2"  Margin="0,0,0,0" Width="800" HorizontalAlignment="Left" ScrollViewer.HorizontalScrollBarVisibility="Visible">
+                    <!--   <Canvas x:Name="AgentsCanvas" Background="#161a20" Margin="5,20,15,0" HorizontalAlignment="Left" VerticalAlignment="Top" Width="780" Height="240" /> -->
+                        <ScrollViewer HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Auto">
+                            <Canvas x:Name="AgentsCanvas" Background="#161a20"  Margin="5,20,15,0" HorizontalAlignment="Left" VerticalAlignment="Top" />
+                        </ScrollViewer>
+
+                </Grid>
+
+                <!-- Log Area -->
+                <TextBox Name="logArea" Grid.Column="1"  Margin="0,20,5,5" IsReadOnly="True" VerticalScrollBarVisibility="Auto"
+                         Background="#161a20" Foreground="LimeGreen" FontFamily="Consolas" HorizontalAlignment="Right"  Width="385"/>
+            </Grid>
+            <TabControl Name="AgentTabControl" DockPanel.Dock="Top" SelectionChanged="AgentTabControl_SelectionChanged">
+                <!-- Agent Interaction Tabs -->
+                <TabItem Name="TeamChatTab"  Header="Team Chat" />
+            </TabControl>
+
+            <!-- Interaction Output Area -->
+            <TextBox Name="interactionTextArea" DockPanel.Dock="Top"  Margin="5,5,5,0" IsReadOnly="True" Height="410"
+                     VerticalScrollBarVisibility="Auto" Background="#161a20"  Foreground="LimeGreen"
+                     FontFamily="Consolas" Width="1190"/>
+
+            <!-- Command Line Label and Command Text Field -->
+            <StackPanel DockPanel.Dock="Bottom" Orientation="Vertical" Margin="0,0,0,0" Height="65">
+            <Label Name="CurrentAgentInfo" Content="Host\Username" />
+                <TextBox Height="25" Margin="5,0,5,0" Foreground="LimeGreen" Background="#161a20"  KeyDown="InputTextBox_KeyDown" />
+            </StackPanel>
+        </DockPanel>
+    </Grid>
+</Window>

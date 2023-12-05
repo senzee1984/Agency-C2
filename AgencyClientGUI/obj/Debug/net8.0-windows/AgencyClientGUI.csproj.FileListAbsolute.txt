@@ -1,0 +1,9 @@
+C:\Users\Administrator\Desktop\AgencyC2\AgencyClientGUI\obj\Debug\net8.0-windows\MainWindow.baml
+C:\Users\Administrator\Desktop\AgencyC2\AgencyClientGUI\obj\Debug\net8.0-windows\MainWindow.g.cs
+C:\Users\Administrator\Desktop\AgencyC2\AgencyClientGUI\obj\Debug\net8.0-windows\App.g.cs
+C:\Users\Administrator\Desktop\AgencyC2\AgencyClientGUI\obj\Debug\net8.0-windows\AgencyClientGUI_MarkupCompile.cache
+C:\Users\Administrator\Desktop\AgencyC2\AgencyClientGUI\obj\Debug\net8.0-windows\AgencyClientGUI.g.resources
+C:\Users\Administrator\Desktop\AgencyC2\AgencyClientGUI\obj\Debug\net8.0-windows\AgencyClientGUI.GeneratedMSBuildEditorConfig.editorconfig
+C:\Users\Administrator\Desktop\AgencyC2\AgencyClientGUI\obj\Debug\net8.0-windows\AgencyClientGUI.AssemblyInfoInputs.cache
+C:\Users\Administrator\Desktop\AgencyC2\AgencyClientGUI\obj\Debug\net8.0-windows\AgencyClientGUI.AssemblyInfo.cs
+C:\Users\Administrator\Desktop\AgencyC2\AgencyClientGUI\obj\Debug\net8.0-windows\AgencyClientGUI.csproj.CoreCompileInputs.cache
