@@ -36,16 +36,16 @@
 
 [+] Enriched the data structure in server and agent
 
-![image](/screenshot/gui.png)
 
 ### 2023.12.4
 [+] Completed the basic network interaction portion of the client
 
 [+] Fixed UI glitch
 
-![image](/screenshot/12.5.update.png)
 
 ### 2023.12.5
 [+] Resolved an issue that the output and assigned mission is printed multiple times, which is caused by async communication
 
 [+] Formatted the output in interaction area
+
+![image](/screenshot/12.5.update.png)
