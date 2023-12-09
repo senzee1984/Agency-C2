@@ -49,3 +49,14 @@
 [+] Formatted the output in interaction area
 
 ![image](/screenshot/12.5.update.png)
+
+
+### 2023.12.8
+[+] Improved WPF client's theme, UI layout
+
+[+] Improved user experience and UI design
+
+![image](/screenshot/wpfui1.png)
+
+![image](/screenshot/wpfui2.png)
+
