@@ -56,7 +56,7 @@
 
 [+] Improved user experience and UI design
 
-![image](/screenshot/wpfui1.png)
+![image](/screenshot/wpfgui1.png)
 
-![image](/screenshot/wpfui2.png)
+![image](/screenshot/wpfgui2.png)
 
