@@ -60,3 +60,11 @@
 
 ![image](/screenshot/wpfgui2.png)
 
+### 2023.12.11
+[+] Improved the display of arrow and icon in canvas
+
+
+### 2023.12.12
+[+] Started to use Nim to rewrite the agent
+
+
