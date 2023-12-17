@@ -67,4 +67,11 @@
 ### 2023.12.12
 [+] Started to use Nim to rewrite the agent
 
+### 2023.12.17
+[+] Wrote C# version of agent
+
+[+] Implemented execute-assembly command
+
+[+] Modify and improve server processing logic
+
 
