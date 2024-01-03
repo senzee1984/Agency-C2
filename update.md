@@ -72,6 +72,9 @@
 
 [+] Implemented execute-assembly command
 
+### 2023.12.31
+[+] Fixed icon bugs in client
+
 [+] Modify and improve server processing logic
 
 
