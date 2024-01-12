@@ -75,6 +75,15 @@
 ### 2023.12.31
 [+] Fixed icon bugs in client
 
+### 2024.1.12
+[+] Updated data structure in client to make sure the data is consistent between client and server
+
+[+] Updated the font style and size to make it look well
+
+[+] Updated client-side code to follow server's change
+
+[+] Improved spy's code 
+
 [+] Modify and improve server processing logic
 
 
